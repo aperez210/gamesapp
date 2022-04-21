@@ -23,9 +23,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 
 open class Screen(val route:String){
-    object  gameHome: Screen("list_screen")
+    object  GameHome: Screen("list_screen")
     object  TicTacToe: Screen("tictactoe")
     object  Sudoku: Screen("sudoku")
+    object  VictoryScreen: Screen("victory")
 }
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,11 +34,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             val navController = rememberNavController()
             NavHost(navController = navController,
-                    startDestination =  Screen.gameHome.route){
-                    composable(route = Screen.gameHome.route)   {   GameHome(navController = navController)}
+                    startDestination =  Screen.GameHome.route){
+                    composable(route = Screen.GameHome.route)   {   GameHome(navController = navController)}
                     composable(route = Screen.TicTacToe.route)  {   TicTacToe(navController = navController)}
                     composable(route = Screen.Sudoku.route)  {   Sudoku(navController = navController) }
-                }
+                    composable(route = Screen.VictoryScreen.route)  {   VictoryScreen(navController = navController) }
+            }
         }
     }
 }
@@ -45,7 +47,6 @@ class MainActivity : ComponentActivity() {
 //Screen 1
 @Composable
 fun GameHome(navController: NavController){
-
     Column(
         Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -204,7 +205,6 @@ fun winner(board:List<MutableState<Int>>, winState:MutableState<Int>) {
     }
 }
 
-//Screen 3
 fun MutableList<Int>.publishTo(boxes: MutableState<MutableList<Int>>){
     if(this.size == 81)
     {
@@ -219,47 +219,30 @@ fun MutableList<Int>.compare(list:MutableList<Int>): Boolean {
     }
     return false
 }
-@Composable
-fun Sudoku(navController: NavHostController)
-{
-    var i = 0
-    var boxes = remember{mutableStateOf(mutableListOf<Int>(81))}
-    val one = mutableListOf<Int>(
-        0,0,0,2,0,9,7,0,1,
-        6,8,0,0,7,0,0,9,3,
-        1,9,0,0,0,4,5,0,2,
-        8,2,0,1,0,0,0,4,7,
-        0,0,4,6,0,2,9,0,5,
-        0,5,0,0,0,3,0,2,8,
-        0,0,9,3,0,0,0,7,4,
-        0,4,0,0,5,0,0,3,6,
-        7,0,3,0,1,8,0,0,9)
-    val oneAnswer = mutableListOf<Int>(
-        4,3,5,2,6,9,7,8,1,
-        6,8,2,5,0,0,4,9,3,
-        1,9,7,8,3,4,5,6,2,
-        8,2,6,1,9,5,3,4,7,
-        3,7,4,6,8,2,9,1,5,
-        9,5,1,7,4,3,6,2,8,
-        5,1,9,3,2,6,8,7,4,
-        2,4,8,9,5,7,1,3,6,
-        7,6,3,4,1,8,2,5,9)
 
+@Composable
+fun Sudoku(navController: NavHostController) {
+    var i = 0
+    val boxes = remember{mutableStateOf(mutableListOf<Int>(81))}
+    val level = remember{ mutableStateOf(0)}
+    val levels = LevelList()
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-        FloatingActionButton(onClick = { navController.navigate(Screen.gameHome.route) }) {
+        FloatingActionButton(onClick = { navController.navigate(Screen.GameHome.route) }) {
+            Text("<-")
         }
     }) {
-
         LazyColumn(
             content = {
                 item {
                     Text("Sudoku", modifier = Modifier.padding(bottom = 25.dp, top = 25.dp))}
                     repeat(9) {
                     item{
-                        LazyRow(Modifier.padding(start = 15.dp)
-                            .border(BorderStroke(3.dp, Color.Black)),
+                        LazyRow(
+                            Modifier
+                                .padding(start = 15.dp)
+                                .border(BorderStroke(3.dp, Color.Black)),
                             content = {
                             repeat(9) {
                                 item {i++;SelectionSquare(i, boxes) }
@@ -272,24 +255,34 @@ fun Sudoku(navController: NavHostController)
                     Modifier.padding(top = 25.dp)
                 ){
                     Button( onClick = {
-                        if(boxes.value.compare(oneAnswer)){
-                            navController.navigate(Screen.gameHome.route)
+                        if(boxes.value.compare(levels[level.value + 1])){
+                            //navController.navigate(Screen.VictoryScreen.route)
+                            level.value = 2
+                            levels[level.value].publishTo(boxes)
                         }else{
                             System.out.println("\n[***] NOT DONE YET\n")
                         }},
                         ) {
                         Text("Check")
                     }
-
-                    Button(onClick = {boxes.value = oneAnswer}) {
+                    Button(onClick = {boxes.value = levels[level.value + 1]}) {
                         Text("Complete")
                     }
                 }
-
             }
             })
         }
-    one.publishTo(boxes)
+    levels[level.value].publishTo(boxes)
+}
+@Composable
+fun VictoryScreen(navController: NavHostController){
+    LazyColumn(content = {
+        item{
+            Button(onClick = {navController.navigate(Screen.Sudoku.route)}) {
+                Text("Go back")
+            }
+        }
+    })
 }
 @Composable
 fun SelectionSquare(boxNum:Int,boxes:MutableState<MutableList<Int>>){
@@ -327,4 +320,50 @@ fun SelectionSquare(boxNum:Int,boxes:MutableState<MutableList<Int>>){
             }
         }
     }
+}
+
+fun LevelList(): List<MutableList<Int>> {
+    //levels[0]
+    val one = mutableListOf<Int>(
+        0,0,0,2,0,9,7,0,1,
+        6,8,0,0,7,0,0,9,3,
+        1,9,0,0,0,4,5,0,2,
+        8,2,0,1,0,0,0,4,7,
+        0,0,4,6,0,2,9,0,5,
+        0,5,0,0,0,3,0,2,8,
+        0,0,9,3,0,0,0,7,4,
+        0,4,0,0,5,0,0,3,6,
+        7,0,3,0,1,8,0,0,9)
+    //levels[1]
+    val oneAnswer = mutableListOf<Int>(
+        4,3,5,2,6,9,7,8,1,
+        6,8,2,5,7,1,4,9,3,
+        1,9,7,8,3,4,5,6,2,
+        8,2,6,1,9,5,3,4,7,
+        3,7,4,6,8,2,9,1,5,
+        9,5,1,7,4,3,6,2,8,
+        5,1,9,3,2,6,8,7,4,
+        2,4,8,9,5,7,1,3,6,
+        7,6,3,4,1,8,2,5,9)
+    val two = mutableListOf<Int>(
+        0,0,5,8,0,1,7,3,2,
+        3,0,0,0,4,6,1,8,9,
+        9,0,0,3,0,7,4,5,6,
+        2,1,3,0,0,0,8,9,0,
+        5,4,0,1,0,9,6,0,0,
+        7,9,6,0,0,8,0,0,3,
+        1,0,0,0,7,5,9,0,8,
+        0,7,9,6,1,0,5,4,3,
+        0,5,0,9,8,3,0,0,1)
+    val twoAnswer = mutableListOf<Int>(
+        4,6,5,8,9,1,7,3,2,
+        3,2,7,5,4,6,1,8,9,
+        9,8,1,3,2,7,4,5,6,
+        2,1,3,7,6,4,8,9,5,
+        5,4,8,1,3,9,6,2,7,
+        7,9,6,2,5,8,3,1,3,
+        1,3,2,4,7,5,9,6,8,
+        8,7,9,6,1,2,5,4,3,
+        6,5,4,9,8,3,2,7,1)
+    return listOf(one,oneAnswer,two,twoAnswer)
 }
