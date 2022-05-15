@@ -1,5 +1,8 @@
 package com.example.tiktaktoe
 
+import android.app.AlertDialog
+import android.app.Dialog
+import android.graphics.fonts.Font
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,13 +17,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.Blue
+import androidx.compose.ui.text.font.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentManager
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.google.gson.JsonElement
+import com.google.gson.JsonParser
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import org.json.JSONArray
+import java.net.URI.create
+
 
 open class Screen(val route:String){
     object  GameHome: Screen("list_screen")
@@ -28,35 +48,65 @@ open class Screen(val route:String){
     object  Sudoku: Screen("sudoku")
     object  VictoryScreen: Screen("victory")
 }
+val goodDog = Font(R.font.gooddog)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            val level =  remember { mutableStateOf(0) }
             val navController = rememberNavController()
             NavHost(navController = navController,
-                    startDestination =  Screen.GameHome.route){
-                    composable(route = Screen.GameHome.route)   {   GameHome(navController = navController)}
-                    composable(route = Screen.TicTacToe.route)  {   TicTacToe(navController = navController)}
-                    composable(route = Screen.Sudoku.route)  {   Sudoku(navController = navController) }
-                    composable(route = Screen.VictoryScreen.route)  {   VictoryScreen(navController = navController) }
+            startDestination =  Screen.GameHome.route){
+            composable(route = Screen.GameHome.route)   {   GameHome(navController = navController)}
+            composable(route = Screen.TicTacToe.route)  {   TicTacToe(navController = navController)}
+            composable(route = Screen.Sudoku.route)  {   Sudoku(level,navController = navController) }
+            composable(route = Screen.VictoryScreen.route)  {   VictoryScreen(navController = navController) }
             }
+
+
         }
     }
 }
 
+
 //Screen 1
 @Composable
 fun GameHome(navController: NavController){
-    Column(
-        Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Games",Modifier.padding(65.dp))
-        Button(onClick = {navController.navigate(route = Screen.TicTacToe.route) }) {
-            Text("TicTacToe")
-        }
-        Button(onClick = { navController.navigate(route = Screen.Sudoku.route) }) {
-            Text("Sudoku" )
+    val scaffoldState = rememberScaffoldState()
+    val scope = rememberCoroutineScope()
+
+
+    Scaffold(
+        scaffoldState = scaffoldState,
+        floatingActionButtonPosition = FabPosition.End,
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+
+                text = { /*TODO*/ },
+                onClick = {
+                    scope.launch {
+                        scaffoldState.drawerState.apply {
+                            if (isClosed) open() else close()
+                        }
+                    }
+                }) },
+                drawerContent = {
+                    Button(onClick = {navController.navigate(route = Screen.TicTacToe.route) }) {
+                        Text("TicTacToe")
+                    }
+                    Button(onClick = { navController.navigate(route = Screen.Sudoku.route) }) {
+                        Text("Sudoku" )
+                    }
+    }) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(65.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Alex Perez's \n Assorted Games App",)
+
         }
     }
 }
@@ -85,7 +135,15 @@ fun TicTacToe(navController: NavController) {
     val middle = 100
     val fonty = 40.sp
     val buttonMod = Modifier.size(width = 100.dp, height = 100.dp)
-    Scaffold {
+    val scaffoldState = rememberScaffoldState()
+    Scaffold (
+        scaffoldState = scaffoldState,
+        floatingActionButtonPosition = FabPosition.End,
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                text = { /*TODO*/ },
+                onClick = {navController.navigate(Screen.GameHome.route)})},
+        ){
         Column(horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(top =(middle/2).dp)) {
             Text("Tic Tac Toe", fontSize = 25.sp)
@@ -189,7 +247,7 @@ fun clear(board: List<MutableState<Int>>, winState: MutableState<Int>,
 }
 fun winner(board:List<MutableState<Int>>, winState:MutableState<Int>) {
     val winCon = listOf<IntArray>(
-        intArrayOf(0,1,2),
+            intArrayOf(0,1,2),
         intArrayOf(1,4,7),
         intArrayOf(2,5,8),
         intArrayOf(0,3,6),
@@ -212,20 +270,50 @@ fun MutableList<Int>.publishTo(boxes: MutableState<MutableList<Int>>){
     }
 }
 fun MutableList<Int>.compare(list:MutableList<Int>): Boolean {
-    if(this.size == list.size)
-    {
-        if(this.equals(list))
+    if (this.size == list.size) {
+        if (this.equals(list))
             return true
     }
     return false
 }
+@Composable
+fun TheDialog(
+    title:String,
+    desc:String,
+    onDismiss: () -> Unit){
+    Dialog(
+        onDismissRequest = onDismiss
+    ){
+        Box(
+            modifier = Modifier.width(300.dp).height(400.dp)
+        ){
+
+        }
+    }
+}
 
 @Composable
-fun Sudoku(navController: NavHostController) {
+fun Sudoku(level:MutableState<Int>,navController: NavHostController) {
     var i = 0
     val boxes = remember{mutableStateOf(mutableListOf<Int>(81))}
-    val level = remember{ mutableStateOf(0)}
     val levels = LevelList()
+
+
+    var solutionStr = ""
+    runBlocking {
+        val job = launch(Dispatchers.Default) {
+            try {
+                val answer = getSolution(callSudokuAPI(LeveltoJson(levels[level.value])))
+
+                if(!answer.isNullOrBlank())
+                    solutionStr = answer
+            } catch (e: Exception) {
+                System.out.println(e)
+            }
+        }
+    }
+    val levelSolution = solutionStr.toIntMutableList()
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
@@ -236,7 +324,8 @@ fun Sudoku(navController: NavHostController) {
         LazyColumn(
             content = {
                 item {
-                    Text("Sudoku", modifier = Modifier.padding(bottom = 25.dp, top = 25.dp))}
+                    Text("Sudoku \n level: " + level.value+1,
+                        modifier = Modifier.padding(bottom = 25.dp, top = 25.dp,start = 25.dp))}
                     repeat(9) {
                     item{
                         LazyRow(
@@ -254,18 +343,23 @@ fun Sudoku(navController: NavHostController) {
                 Row(
                     Modifier.padding(top = 25.dp)
                 ){
-                    Button( onClick = {
-                        if(boxes.value.compare(levels[level.value + 1])){
-                            //navController.navigate(Screen.VictoryScreen.route)
-                            level.value = 2
-                            levels[level.value].publishTo(boxes)
-                        }else{
-                            System.out.println("\n[***] NOT DONE YET\n")
-                        }},
-                        ) {
+
+                    Button(
+                        onClick = {
+                            //TODO Button clicky
+                            System.out.println(levelSolution)
+                            if (boxes.value.compare(levelSolution)) {
+                                navController.navigate(Screen.VictoryScreen.route)
+                                level.value++
+                                levels[level.value].publishTo(boxes)
+                            } else {
+                                //TODO DIALOG
+                            }
+                        },
+                    ) {
                         Text("Check")
                     }
-                    Button(onClick = {boxes.value = levels[level.value + 1]}) {
+                    Button(onClick = {boxes.value = levelSolution}) {
                         Text("Complete")
                     }
                 }
@@ -273,6 +367,34 @@ fun Sudoku(navController: NavHostController) {
             })
         }
     levels[level.value].publishTo(boxes)
+}
+fun callSudokuAPI(level:String): String? {
+    val client = OkHttpClient()
+    val mediaType = MediaType.parse("application/json")
+    val body = RequestBody.create(mediaType,level)
+    val request = Request.Builder()
+        .url("https://solve-sudoku.p.rapidapi.com/")
+        .post(body)
+        .addHeader("content-type", "application/json")
+        .addHeader("X-RapidAPI-Host", "solve-sudoku.p.rapidapi.com")
+        .addHeader("X-RapidAPI-Key", "de407b89c0mshcf56859620e2a02p152c77jsn9c0e5d6b263c")
+        .build()
+    val response = client.newCall(request).execute().body()?.string()
+    return response
+}
+fun getSolution(S:String?): String? {
+    val jsonElement: JsonElement = JsonParser().parse(S)
+    val jsonObject = jsonElement.asJsonObject
+    return jsonObject.get("solution").toString().substring(1,82)
+}
+fun String.toIntMutableList():MutableList<Int>{
+    var listo = mutableListOf<Int>()
+    this.forEachIndexed() {index, letter ->
+        if (letter.isDigit()){
+            listo.add(letter.digitToInt())
+        }
+    }
+    return listo
 }
 @Composable
 fun VictoryScreen(navController: NavHostController){
@@ -321,7 +443,18 @@ fun SelectionSquare(boxNum:Int,boxes:MutableState<MutableList<Int>>){
         }
     }
 }
-
+fun LeveltoJson(level:MutableList<Int>): String{
+    var output = "{" + "\n" + "\"puzzle\": \""
+    level.forEachIndexed { index, s ->
+        if(level[s] == 0){
+            output+="."
+        }else{
+            output+=s.toString()
+        }
+    }
+    output+= "\"" + "\n" + "}"
+    return output
+}
 fun LevelList(): List<MutableList<Int>> {
     //levels[0]
     val one = mutableListOf<Int>(
@@ -334,17 +467,6 @@ fun LevelList(): List<MutableList<Int>> {
         0,0,9,3,0,0,0,7,4,
         0,4,0,0,5,0,0,3,6,
         7,0,3,0,1,8,0,0,9)
-    //levels[1]
-    val oneAnswer = mutableListOf<Int>(
-        4,3,5,2,6,9,7,8,1,
-        6,8,2,5,7,1,4,9,3,
-        1,9,7,8,3,4,5,6,2,
-        8,2,6,1,9,5,3,4,7,
-        3,7,4,6,8,2,9,1,5,
-        9,5,1,7,4,3,6,2,8,
-        5,1,9,3,2,6,8,7,4,
-        2,4,8,9,5,7,1,3,6,
-        7,6,3,4,1,8,2,5,9)
     val two = mutableListOf<Int>(
         0,0,5,8,0,1,7,3,2,
         3,0,0,0,4,6,1,8,9,
@@ -355,15 +477,16 @@ fun LevelList(): List<MutableList<Int>> {
         1,0,0,0,7,5,9,0,8,
         0,7,9,6,1,0,5,4,3,
         0,5,0,9,8,3,0,0,1)
-    val twoAnswer = mutableListOf<Int>(
-        4,6,5,8,9,1,7,3,2,
-        3,2,7,5,4,6,1,8,9,
-        9,8,1,3,2,7,4,5,6,
-        2,1,3,7,6,4,8,9,5,
-        5,4,8,1,3,9,6,2,7,
-        7,9,6,2,5,8,3,1,3,
-        1,3,2,4,7,5,9,6,8,
-        8,7,9,6,1,2,5,4,3,
-        6,5,4,9,8,3,2,7,1)
-    return listOf(one,oneAnswer,two,twoAnswer)
+    val three = mutableListOf<Int>(
+        0,0,6,0,0,9,1,8,3,
+        0,9,0,6,5,0,0,7,4,
+        4,0,0,0,7,0,6,0,0,
+        3,0,0,2,8,5,4,6,0,
+        0,1,0,7,0,0,0,0,8,
+        0,8,0,0,4,0,7,0,9,
+        1,0,8,5,0,7,0,0,0,
+        0,0,0,0,0,0,0,0,0,
+        0,3,2,0,0,4,8,1,7)
+
+    return listOf(one,two,three)
 }
