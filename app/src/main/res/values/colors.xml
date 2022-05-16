@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <color name="kholin_blue">#0047AB</color>
+    <color name="windrunner">#0F52BA</color>
+    <color name="truthwatcher">#1B7931</color>
+    <color name="lightweaver">#733635</color>
+    <color name="dustbringer">#e0115f</color>
+    <color name="bondsmith">#FFDF00</color>
 </resources>

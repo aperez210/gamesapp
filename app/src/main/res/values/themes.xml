@@ -3,5 +3,8 @@
 
     <style name="Theme.TikTakToe" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@color/purple_700</item>
+        <item name="android:colorBackground">@color/lightweaver</item>
+        <item name="android:textColor">@color/windrunner</item>
+        <item name="colorAccent">@color/truthwatcher</item>
     </style>
 </resources>
