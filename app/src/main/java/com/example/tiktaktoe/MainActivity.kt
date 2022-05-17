@@ -1,15 +1,19 @@
 package com.example.tiktaktoe
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.*
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -25,11 +29,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -45,6 +53,7 @@ import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import androidx.core.content.ContextCompat.getSystemService
 
 open class Screen(val route:String){
     object  GameHome: Screen("list_screen")
@@ -76,16 +85,28 @@ class Helper(context: Context?):SQLiteOpenHelper(context,"sudoku",null,1){
     }
 
     override fun onUpgrade(p0: SQLiteDatabase?, p1: Int, p2: Int) {
-        TODO("Not yet implemented")
+
     }
 }
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            ButtonDefaults.textButtonColors()
-            //TODO composables for every part
+            textButtonColors()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val id = "note"
+                val name = "channel"
+                val descriptionText = "alex's channel"
+                val importance = NotificationManager.IMPORTANCE_DEFAULT
+                val channel = NotificationChannel(id,name,importance).apply {
+                    description = descriptionText
+                }
+                // Register the channel with the system
+                //val noteMan = NotificationManager().getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                //noteMan.createNotificationChannel(channel)
+            var builder = NotificationCompat.Builder(this,"channel")
             val br: BroadcastReceiver = MyBroadcastReceiver()
             val filter = IntentFilter().apply {
                 addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
@@ -104,17 +125,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-private const val TAG = "MyBroadcastReceiver"
+
 
 class MyBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         StringBuilder().apply {
             append("Action: ${intent.action}\n")
             append("URI: ${intent.toUri(Intent.URI_INTENT_SCHEME)}\n")
-            toString().also { log ->
-                Log.d(TAG, log)
-                Toast.makeText(context, log, Toast.LENGTH_LONG).show()
-            }
         }
     }
 }
@@ -158,12 +175,18 @@ fun GameHome(navController: NavController){
                     }
     }) {
         Column(
+
             Modifier
                 .fillMaxSize()
-                .padding(65.dp),
+                .padding(65.dp)
+                .background(windrunner,Shapes().large),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Alex Perez's \n Assorted Games App",)
+            Icon(
+                painter = painterResource(id = R.drawable.titletextfill),
+                contentDescription = "Title Text",
+                Modifier.fillMaxWidth()
+            )
 
         }
     }
@@ -812,11 +835,12 @@ fun Sudoku(level: MutableState<Int>, navController: NavHostController, ac: Conte
                             desc = "Your answer is incorrect!",
                             onDismiss ={seeDialogue.value = false})
                     }
+                    /*
                     Button(onClick = {
                         boxes.value = levelSolution
                     }) {
                         Text("Complete")
-                    }
+                    }*/
                 }
             }
             })
@@ -857,8 +881,16 @@ fun String.toIntMutableList():MutableList<Int>{
 fun VictoryScreen(navController: NavHostController){
     LazyColumn(content = {
         item{
+
             Button(onClick = {navController.navigate(Screen.Sudoku.route)}) {
                 Text("Go back")
+            }
+            val seeDialogue = remember{ mutableStateOf(true)}
+            if (seeDialogue.value){
+                Dialogue(type = DialogueType.INFO,
+                    title = "Level Result:",
+                    desc = "Congratulations you beat a level",
+                    onDismiss ={seeDialogue.value = false})
             }
         }
     })
@@ -928,4 +960,4 @@ fun LevelList(ac: Context): MutableList<MutableList<Int>> {
         }
     }
     return x
-}
+}}
